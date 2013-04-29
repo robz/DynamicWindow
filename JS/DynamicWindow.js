@@ -282,43 +282,41 @@
         x = coords[0];
         y = coords[1];
         
-        if (state === 0) {
-            goal_x = x;
-            goal_y = y;
-            state = 0;
-            
-            var spec = {
-                action_out: {linear: 0, angular: 0},
-                cur_x: cur_x,
-                cur_y: cur_y,
-                cur_dir: cur_dir,
-                cur_linear: cur_lin,
-                cur_angular: cur_ang,
-                cloud: [{x:1, y:1}],
-                goal_x: goal_x,
-                goal_y: goal_y,
-            }
-            
-            Plotter.clear();
-            Plotter.drawAxises(1, 1);
-            Plotter.plotPoint(1, 1);
-            DynamicWindow(spec);  
-            Plotter.plotPoint(x, y);
-            
-            var linear = spec.action_out.linear,
-                angular = spec.action_out.angular;
+        goal_x = x;
+        goal_y = y;
+        state = 0;
 
-            var tmp = calcKinematic(cur_x, cur_y, cur_dir, linear, angular);
-            x = tmp[0];
-            y = tmp[1];
-            dir = tmp[2];            
-
-            Plotter.drawRedArrow(x, y, dir);
-            cur_x = x;
-            cur_y = y;
-            cur_dir = dir;
-            cur_lin = linear;
-            cur_ang = angular;
+        var spec = {
+            action_out: {linear: 0, angular: 0},
+            cur_x: cur_x,
+            cur_y: cur_y,
+            cur_dir: cur_dir,
+            cur_linear: cur_lin,
+            cur_angular: cur_ang,
+            cloud: [{x:1, y:1}],
+            goal_x: goal_x,
+            goal_y: goal_y,
         }
+
+        Plotter.clear();
+        Plotter.drawAxises(1, 1);
+        Plotter.plotPoint(1, 1);
+        DynamicWindow(spec);  
+        Plotter.plotPoint(x, y);
+
+        var linear = spec.action_out.linear,
+        angular = spec.action_out.angular;
+
+        var tmp = calcKinematic(cur_x, cur_y, cur_dir, linear, angular);
+        x = tmp[0];
+        y = tmp[1];
+        dir = tmp[2];            
+
+        Plotter.drawRedArrow(x, y, dir);
+        cur_x = x;
+        cur_y = y;
+        cur_dir = dir;
+        cur_lin = linear;
+            cur_ang = angular;
     };
 })();
