@@ -1,0 +1,121 @@
+var SMALL_ENOUGH = 1e-6;
+
+var makeCircle = function (x, y, r) {
+    return {
+        type: "circle",
+        x: x,
+        y: y,
+        r: r
+    };
+};
+
+var makePoint = function (x, y) {
+    return {
+        type: "point",
+        x: x,
+        y: y
+    };
+};
+
+var makeVector = function (x, y, dir) {
+    return {
+        type: "vector",
+        x: x,
+        y: y,
+        dir: dir
+    }
+};
+
+var makePose = function (x, y, dir, v, w) {
+    return {
+        x: x,
+        y: y,
+        dir: dir,
+        v: v,
+        w: w
+    };
+};
+
+var euclid = function (x1, y1, x2, y2) {
+    return Math.sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2))
+};
+
+var circleIntersections = function (c1, c2) {
+    var dist = euclid(c1.x, c1.y, c2.x, c2.y),
+        angle = Math.atan2(c2.y - c1.y, c2.x - c1.x),
+    
+        small = (c1.r < c2.r) ? c1.r : c2.r,
+        big = (c1.r > c2.r) ? c1.r : c2.r;
+    
+    if (c1.r === c2.r && c1.x === c2.x && c1.y === c2.y) {
+        return [];
+    } else if (dist === small + big || dist === big - small) {
+        return [
+            makePoint(c1.x + c1.r*Math.cos(angle), 
+                      c1.y + c1.r*Math.sin(angle))
+        ];
+    } else if (dist < small + big && dist > big - small) {
+        // using the law of cosines
+        var angleOffset = Math.acos((c1.r*c1.r + dist*dist - c2.r*c2.r)/(2*c1.r*dist));
+        
+        return [
+            makePoint(c1.x + c1.r*Math.cos(angle + angleOffset), 
+                      c1.y + c1.r*Math.sin(angle + angleOffset)), 
+            makePoint(c1.x + c1.r*Math.cos(angle - angleOffset), 
+                      c1.y + c1.r*Math.sin(angle - angleOffset))
+        ];
+    }
+    
+    return [];
+};
+
+// returns circle, vector, or point
+var calculateTrajetory = function (pose) {
+    if (Math.abs(pose.v) < SMALL_ENOUGH) {
+        return makePoint(pose.x, pose.y);
+    } else if (Math.abs(pose.w) <= SMALL_ENOUGH) {
+        return makeVector(pose.x, pose.y, pose.dir);
+    } 
+    
+    // otherwise, v and w are both nonzero:
+    var radius = Math.abs(pose.v/pose.w);
+    
+    if (pose.v > 0) {        
+        if (pose.w > 0) {
+            return makeCircle(
+                pose.x + radius*Math.cos(pose.dir + Math.PI/2),
+                pose.y + radius*Math.sin(pose.dir + Math.PI/2),
+                radius
+            );
+        } else {
+            return makeCircle(
+                pose.x + radius*Math.cos(pose.dir - Math.PI/2),
+                pose.y + radius*Math.sin(pose.dir - Math.PI/2),
+                radius
+            );
+        }
+    } else {
+        throw "not implemented yet!"
+    }
+};
+
+var trajectoryIntersection = function (traj, circle) {
+    if (traj.type === "circle") {
+        var points = circleIntersections(traj, circle);
+        
+        if (points.length === 0) {
+            return null;
+        } else if (points.length === 1) {
+            return points[0];
+        } else if (points.length === 2) {
+            return points[1];
+        }
+    }
+}
+
+
+
+
+
+
+

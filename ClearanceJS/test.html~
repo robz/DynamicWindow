@@ -1,0 +1,16 @@
+<html>
+<style>
+body {
+    margin: auto;
+    text-align: center;
+}
+</style>
+<body>
+<canvas id="canvas" height=700 width=800></canvas>
+<br/>clearance:<input type="text" name="clearance" id="clearance"/>
+<br/>goal direction:<input type="text" name="goalDir" name="goalDir"/>
+<br/>linear velocity:<input type="text" name="linearVel" name="linearVel"/>
+<script src="Geometry.js"></script>
+<script src="ClearanceTest.js"></script>
+</body>
+</html>
