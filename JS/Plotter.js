@@ -80,14 +80,24 @@ var Plotter = (function (spec) {
         }
     };
     
-    plotter.plotPoint = function (x, y) {
+    plotter.plotPoint = function (x, y, color, radius) {
+        if (typeof color === "undefined") {
+            color = POINT_COLOR;
+        }
+        
+        if (typeof radius === "undefined") {
+            radius = POINT_RADIUS;
+        } else {
+            radius *= scalex;
+        }
+    
         context.save();
-        context.fillStyle = POINT_COLOR;
+        context.fillStyle = color;
         context.beginPath();
         context.arc(
             x*scalex + originx*width, 
             height - (y*scaley + originy*height), 
-            POINT_RADIUS, 0, Math.PI*2, false);
+            radius, 0, Math.PI*2, false);
         context.fill();
         context.restore();
     };
@@ -124,12 +134,7 @@ var Plotter = (function (spec) {
     
     plotter.drawArrow = function (x, y, dir) {
         context.save();
-        /*
-        context.fillStyle = ARROW_COLOR;
-        context.beginPath();
-        arc(x, y, POINT_RADIUS);
-        context.fill();
-        */
+        
         context.strokeStyle = ARROW_COLOR;
         context.lineWidth = 2;
         context.beginPath();

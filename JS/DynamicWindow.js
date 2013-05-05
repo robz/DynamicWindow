@@ -1,10 +1,11 @@
 (function () {
     var CLOSE_ENOUGH_TO_GOAL = .1,
-        ANGULAR_ACCEL = 2, ANGULAR_SAMPLES = 15, ANGULAR_MIN = -3, ANGULAR_MAX = 3,
-        LINEAR_ACCEL = 2, LINEAR_SAMPLES = 10, LINEAR_MIN = 0, LINEAR_MAX = 2.0,
-        DT = .8, 
-        CLEARANCE_MIN = .6, CLEARANCE_MAX = 2,
-        LINEAR_WEIGHT = .01, CLEARANCE_WEIGHT = 1, GOAL_DIR_WEIGHT = 1,
+        ANGULAR_ACCEL = Math.PI/2, ANGULAR_SAMPLES = 10, ANGULAR_MIN = -Math.PI/2, ANGULAR_MAX = Math.PI/2,
+        LINEAR_ACCEL = .4, LINEAR_SAMPLES = 10, LINEAR_MIN = 0, LINEAR_MAX = .8,
+        DT = .1, 
+        CLEARANCE_MIN = .6, CLEARANCE_MAX = 1.4,
+        LINEAR_WEIGHT = .1, CLEARANCE_WEIGHT = 10, GOAL_DIR_WEIGHT = .1,
+        SLOW_DOWN_RADIUS = 2,
         
         euclidDist = function (x1, y1, x2, y2) {
             return Math.sqrt((x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1));
@@ -51,7 +52,11 @@
                 }
             }
             
-            return min_clearance;
+            if (min_clearance > CLEARANCE_MAX) {
+                min_clearance = CLEARANCE_MAX;
+            }
+            
+            return min_clearance - CLEARANCE_MIN;
         },
 
         calcKinematic = function (cur_x, cur_y, cur_dir, linear, angular) {
@@ -94,7 +99,8 @@
             goal_x = spec.goal_x; 
             goal_y = spec.goal_y;
             
-            if (euclidDist(goal_x, goal_y, cur_x, cur_y) < CLOSE_ENOUGH_TO_GOAL) {
+            var distToGoal = euclidDist(goal_x, goal_y, cur_x, cur_y);
+            if (distToGoal < CLOSE_ENOUGH_TO_GOAL) {
                 spec.action_out.linear = 0;
                 spec.action_out.angular = 0;
                 return true;
@@ -102,21 +108,32 @@
             
             var options = [];
             
-            for (var ang_add = -ANGULAR_ACCEL; 
-                 ang_add <= ANGULAR_ACCEL;
-                 ang_add += ANGULAR_ACCEL*2/(ANGULAR_SAMPLES - 1)) 
+            var ang_inc = ANGULAR_ACCEL*2/(ANGULAR_SAMPLES - 1),
+                lin_inc = LINEAR_ACCEL*2/(LINEAR_SAMPLES - 1);
+            /*    
+            console.log(cur_angular + ang_inc*~~(-(ANGULAR_SAMPLES - 1)/2), 
+                        cur_angular + ang_inc*~~((ANGULAR_SAMPLES - 1)/2));
+            console.log(cur_linear + lin_inc*~~(-(LINEAR_SAMPLES - 1)/2), 
+                        cur_linear + lin_inc*~~((LINEAR_SAMPLES - 1)/2));
+            */
+            
+            for (var ang_index = ~~(-(ANGULAR_SAMPLES - 1)/2); 
+                 ang_index <= ~~((ANGULAR_SAMPLES - 1)/2);
+                 ang_index += 1) 
             {
-                var angular = cur_angular + ang_add;
+                var angular = cur_angular + ang_index*ang_inc;
                 
                 if (angular < ANGULAR_MIN || angular > ANGULAR_MAX) {
                     continue;
                 }
                 
-                for (var lin_add = -LINEAR_ACCEL; 
-                     lin_add <= LINEAR_ACCEL;
-                     lin_add += LINEAR_ACCEL*2/(LINEAR_SAMPLES - 1)) 
+                var clearance = CLEARANCE_MAX;
+                
+                for (var lin_index = ~~(-(LINEAR_SAMPLES - 1)/2); 
+                     lin_index <= ~~((LINEAR_SAMPLES - 1)/2);
+                     lin_index += 1) 
                 {
-                    var linear = cur_linear + lin_add;
+                    var linear = cur_linear + lin_index*lin_inc;
                     
                     if (linear < LINEAR_MIN || linear > LINEAR_MAX) {
                         continue;
@@ -126,28 +143,49 @@
                     var tmp = calcKinematic(cur_x, cur_y, cur_dir, linear, angular)
                     x = tmp[0]
                     y = tmp[1]
-                    dir = tmp[2]                    
- 
-                    // console.log("debug", x, y, dir);
-                
+                    dir = tmp[2]
                            
                     // calculate clearance
-                    var clearance = calcClearance(cloud, x, y);
+                    var local_clearance = calcClearance(cloud, x, y);
+                    
+                    clearance += 1;
                     
                     // ignore if the point is too close to obstacles
-                    console.log(clearance);
-                    if (clearance < CLEARANCE_MIN) {
-                        continue;
+                    if (local_clearance < 0) {
+                        break;
                     }
+                }
+                
+                for (var lin_index = ~~(-(LINEAR_SAMPLES - 1)/2); 
+                     lin_index <= ~~((LINEAR_SAMPLES - 1)/2);
+                     lin_index += 1) 
+                {
+                    // ignore if the point is too close to obstacles
+                    if (clearance < 0) {
+                        break;
+                    }
+                    
+                    var linear = cur_linear + lin_index*lin_inc;
+                    
+                    if (linear < LINEAR_MIN || linear > LINEAR_MAX) {
+                        continue;
+                    } 
+                    
+                    // calcular new point
+                    var tmp = calcKinematic(cur_x, cur_y, cur_dir, linear, angular)
+                    x = tmp[0]
+                    y = tmp[1]
+                    dir = tmp[2]
+                    
                     Plotter.drawArrow(x, y, dir);
                     
                     // calculate normalized clearance weight
-                    var clearanceNorm = (clearance - CLEARANCE_MIN)/CLEARANCE_MAX;
+                    var clearanceNorm = clearance/CLEARANCE_MAX;
                     
                     // calculate normalized goal direction weight
                     var goalDir = Math.atan2(goal_y - cur_y, goal_x - cur_x);
-                    var goalDirDif = Math.abs(angleDif(goalDir, dir));
-                    var goalDirDifNorm = (Math.PI - goalDirDif)/Math.PI;
+                    var goalDirDif = Math.PI - Math.abs(angleDif(goalDir, dir));
+                    var goalDirDifNorm = goalDirDif/Math.PI;
                     
                     // calculate normalized linear velocity weight
                     var linearNorm = linear/LINEAR_MAX;
@@ -171,6 +209,11 @@
                 return false;
             }
             
+            if (typeof nonexistantFlag === "undefined") {
+                console.log(options);
+                nonexistantFlag = true;
+            }
+            
             var best_weight = options[0].weight;
             var best_index = 0;
             
@@ -181,81 +224,19 @@
                 }
             }
             
+            // slow down when approaching the goal
+            if (distToGoal < SLOW_DOWN_RADIUS) {
+                options[best_index].linear *= (distToGoal/SLOW_DOWN_RADIUS);
+            }
+            
             spec.action_out.linear = options[best_index].linear;
             spec.action_out.angular = options[best_index].angular;
             return true;
-        },
-        
-        testCaseArr = [
-            {expected: {linear: LINEAR_ACCEL, angular: 0},
-             action_out: {linear: 0, angular: 0},
-             cur_x: 0, 
-             cur_y: 0,
-             cur_dir: Math.PI/2,
-             cur_linear: 0,
-             cur_angular: 0,
-             cloud: [],
-             goal_x: 0,
-             goal_y: 2,
-             LINEAR_WEIGHT: 1, 
-             CLEARANCE_WEIGHT: 0, 
-             GOAL_DIR_WEIGHT: .1
-            }, 
-            
-            {expected: {linear: LINEAR_ACCEL, angular: ANGULAR_ACCEL},
-             action_out: {linear: 0, angular: 0},
-             cur_x: 0,
-             cur_y: 0,
-             cur_dir: Math.PI/2,
-             cur_linear: 0,
-             cur_angular: 0,
-             cloud: [{x: 0, y: 1}],
-             goal_x: 0,
-             goal_y: 2,
-             LINEAR_WEIGHT: 0, 
-             CLEARANCE_WEIGHT: 1, 
-             GOAL_DIR_WEIGHT: 0
-            }, 
-            
-            {expected: {linear: LINEAR_ACCEL, angular: -Math.PI/4},
-             action_out: {linear: 0, angular: 0},
-             cur_x: 0,
-             cur_y: 0,
-             cur_dir: Math.PI/2,
-             cur_linear: 0,
-             cur_angular: 0,
-             cloud: [],
-             goal_x: 2,
-             goal_y: 2,
-             LINEAR_WEIGHT: .1, 
-             CLEARANCE_WEIGHT: 0, 
-             GOAL_DIR_WEIGHT: 1
-            }
-        ];
-    /*
-    for (var i = 0; i < testCaseArr.length; i++) {
-        LINEAR_WEIGHT = testCaseArr[i].LINEAR_WEIGHT;
-        CLEARANCE_WEIGHT = testCaseArr[i].CLEARANCE_WEIGHT;
-        GOAL_DIR_WEIGHT = testCaseArr[i].GOAL_DIR_WEIGHT;
+        };
     
-        var success = DynamicWindow(testCaseArr[i]),
-            res = testCaseArr[i].action_out,
-            expected = testCaseArr[i].expected;
-        
-        if (success) {
-            if (res.angular === expected.angular &&
-                res.linear === expected.linear) {
-                console.log("test", i, "successful");
-            } else {
-                console.log("test", i, "failed!");
-                console.log("  returned:", res.linear, ",", res.angular);
-                console.log("  expected: ", expected.linear, ",", expected.angular);
-            }
-        } else {
-            console.log("test", i, "returned failure!");
-        }
-    }
-    */
+    document.getElementById("linearVel").value = "" + LINEAR_WEIGHT;
+    document.getElementById("clearance").value = "" + CLEARANCE_WEIGHT;
+    document.getElementById("goalDir").value = "" + GOAL_DIR_WEIGHT;
     
     var canvas = document.getElementById("canvas");
     
@@ -265,27 +246,18 @@
     
     var cur_x = 0,
         cur_y = 0,
-        cur_dir = Math.PI/2,
-        goal_x = null, 
-        goal_y = null, 
-        cloud_x = null,
-        cloud_y = null,
+        cur_dir = 0,
+        goal_x = 0, 
+        goal_y = 0, 
         cur_lin = 0,
-        cur_ang = 0,
-        state = 0;
-
-    canvas.onmousedown = function (event) {
-        var x = event.offsetX, 
-            y = event.offsetY;
+        cur_ang = 0;
         
-        var coords = Plotter.getPlotCoords(x, y);
-        x = coords[0];
-        y = coords[1];
+    var cloud = [];
+    for (var i = 0; i < 80; i++) {
+        cloud.push({x: Math.random()*26-13, y: Math.random()*14-7});
+    }
         
-        goal_x = x;
-        goal_y = y;
-        state = 0;
-
+    var step = function() {
         var spec = {
             action_out: {linear: 0, angular: 0},
             cur_x: cur_x,
@@ -293,30 +265,49 @@
             cur_dir: cur_dir,
             cur_linear: cur_lin,
             cur_angular: cur_ang,
-            cloud: [{x:1, y:1}],
+            cloud: cloud,
             goal_x: goal_x,
             goal_y: goal_y,
         }
-
+        
         Plotter.clear();
+        Plotter.plotPoint(cur_x, cur_y, "lightBlue", CLEARANCE_MAX);
+        Plotter.plotPoint(cur_x, cur_y, "lightGreen", CLEARANCE_MIN);
         Plotter.drawAxises(1, 1);
-        Plotter.plotPoint(1, 1);
-        DynamicWindow(spec);  
-        Plotter.plotPoint(x, y);
+        
+        for (var i = 0; i < spec.cloud.length; i++) {
+            Plotter.plotPoint(spec.cloud[i].x, spec.cloud[i].y)
+        }
+        
+        Plotter.plotPoint(goal_x, goal_y, "blue", .1);
 
+        DynamicWindow(spec);  
+        
         var linear = spec.action_out.linear,
-        angular = spec.action_out.angular;
+            angular = spec.action_out.angular;        
 
         var tmp = calcKinematic(cur_x, cur_y, cur_dir, linear, angular);
-        x = tmp[0];
-        y = tmp[1];
-        dir = tmp[2];            
-
-        Plotter.drawRedArrow(x, y, dir);
-        cur_x = x;
-        cur_y = y;
-        cur_dir = dir;
+        
+        cur_x = tmp[0];
+        cur_y = tmp[1];
+        cur_dir = tmp[2];  
         cur_lin = linear;
-            cur_ang = angular;
+        cur_ang = angular;          
+
+        Plotter.drawRedArrow(cur_x, cur_y, cur_dir);
     };
+    
+    canvas.onmousedown = function (event) {
+        event.preventDefault();
+        
+        LINEAR_WEIGHT = document.getElementById("linearVel").value + 0;
+        CLEARANCE_WEIGHT = document.getElementById("clearance").value + 0;
+        GOAL_DIR_WEIGHT = document.getElementById("goalDir").value + 0;
+        
+        var coords = Plotter.getPlotCoords(event.offsetX, event.offsetY);
+        goal_x = coords[0];
+        goal_y = coords[1];
+    };
+    
+    setInterval(step, 50);
 })();
