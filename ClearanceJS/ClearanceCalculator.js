@@ -1,7 +1,8 @@
-var glib = (function() {
-    var lib = {};
-    
-    var SMALL_ENOUGH = 1e-6;
+var clib = (function() {
+    var lib = {},
+        
+        LARGE_DISTANCE = 1e6,
+        SMALL_ENOUGH = 1e-6;
 
     lib.makeCircle = function (x, y, r) {
         return {
@@ -272,7 +273,16 @@ var glib = (function() {
         return lib.calcIntersection(x, y, theta, linear, angular, circs).delta;
     };
     
-    var calcKinematic = function (cur_x, cur_y, cur_dir, linear, angular, arclen, dir) {
+    var calcKinematic = function (
+        cur_x, 
+        cur_y, 
+        cur_dir, 
+        linear, 
+        angular, 
+        arclen, 
+        dir
+        )
+    {
         var x, y;
     
         if (Math.abs(angular) < 1e-2) {
@@ -282,20 +292,32 @@ var glib = (function() {
             var beta = cur_dir - dir,
                 R = arclen/beta;
 
-            x = cur_x + R*Math.cos(cur_dir - Math.PI/2) + R*Math.cos(cur_dir + Math.PI/2 - beta);
-            y = cur_y + R*Math.sin(cur_dir - Math.PI/2) + R*Math.sin(cur_dir + Math.PI/2 - beta);
+            x = cur_x + R*Math.cos(cur_dir - Math.PI/2) 
+                      + R*Math.cos(cur_dir + Math.PI/2 - beta);
+            y = cur_y + R*Math.sin(cur_dir - Math.PI/2) 
+                      + R*Math.sin(cur_dir + Math.PI/2 - beta);
         } else if (angular > 0) {
             var beta = dir - cur_dir,
                 R = arclen/beta;
 
-            x = cur_x + R*Math.cos(cur_dir + Math.PI/2) + R*Math.cos(cur_dir - Math.PI/2 + beta);
-            y = cur_y + R*Math.sin(cur_dir + Math.PI/2) + R*Math.sin(cur_dir - Math.PI/2 + beta);
+            x = cur_x + R*Math.cos(cur_dir + Math.PI/2) 
+                      + R*Math.cos(cur_dir - Math.PI/2 + beta);
+            y = cur_y + R*Math.sin(cur_dir + Math.PI/2) 
+                      + R*Math.sin(cur_dir - Math.PI/2 + beta);
         } 
         
         return [x, y, dir];
     };
     
-    lib.calcKinematicFromArc = function (cur_x, cur_y, cur_dir, linear, angular, arclen) {
+    lib.calcKinematicFromArc = function (
+        cur_x, 
+        cur_y, 
+        cur_dir, 
+        linear, 
+        angular, 
+        arclen
+        )
+    {
         if (Math.abs(linear) <= 1e-6) {
             throw "linear velocity cannot be zero here!";   
         }
@@ -304,8 +326,16 @@ var glib = (function() {
         
         return calcKinematic(cur_x, cur_y, cur_dir, linear, angular, arclen, dir);
     };
-    
-    lib.calcKinematicFromDT = function (cur_x, cur_y, cur_dir, linear, angular, DT) {
+
+    lib.calcKinematicFromDT = function (
+        cur_x, 
+        cur_y, 
+        cur_dir, 
+        linear, 
+        angular, 
+        DT
+        )
+    {
         var arclen = DT*linear,
             dir = cur_dir + DT*angular;
         

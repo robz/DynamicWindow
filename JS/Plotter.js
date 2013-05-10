@@ -102,6 +102,29 @@ var Plotter = (function (spec) {
         context.restore();
     };
     
+    plotter.plotCircle = function (x, y, color, radius) {
+        if (typeof color === "undefined") {
+            color = POINT_COLOR;
+        }
+        
+        if (typeof radius === "undefined") {
+            radius = POINT_RADIUS;
+        } else {
+            radius *= scalex;
+        }
+    
+        context.save();
+        context.strokeStyle = color;
+        context.lineWidth = 1;
+        context.beginPath();
+        context.arc(
+            x*scalex + originx*width, 
+            height - (y*scaley + originy*height), 
+            radius, 0, Math.PI*2, false);
+        context.stroke();
+        context.restore();
+    };
+    
     plotter.plotMousePoint = function (x, y) {
         context.save();
         context.fillStyle = POINT_COLOR;
@@ -111,19 +134,34 @@ var Plotter = (function (spec) {
         context.restore();
     };
     
-    moveTo = function (x, y) {
+    var moveTo = function (x, y) {
         x = x*scalex + originx*width;
         y = height - (y*scaley + originy*height);
         
         context.moveTo(x, y);
     }
     
-    lineTo = function (x, y) {
+    var lineTo = function (x, y) {
         x = x*scalex + originx*width;
         y = height - (y*scaley + originy*height);
         
         context.lineTo(x, y);
     }
+    
+    plotter.plotVector = function (x, y, dir, color) {
+        if (typeof color === "undefined") {
+            color = POINT_COLOR;
+        }
+        
+        context.save();
+        context.strokeStyle = color;
+        context.lineWidth = 1;
+        context.beginPath();
+        moveTo(x, y);
+        lineTo(x + 1e6*Math.cos(dir), y + 1e6*Math.sin(dir));
+        context.stroke();
+        context.restore();
+    };
     
     arc = function (x, y, radius) {
         x = x*scalex + originx*width;

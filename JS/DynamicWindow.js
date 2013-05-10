@@ -1,11 +1,12 @@
 (function () {
-    var CLOSE_ENOUGH_TO_GOAL = .1,
-        ANGULAR_ACCEL = Math.PI/2, ANGULAR_SAMPLES = 10, ANGULAR_MIN = -Math.PI/2, ANGULAR_MAX = Math.PI/2,
-        LINEAR_ACCEL = .4, LINEAR_SAMPLES = 10, LINEAR_MIN = 0, LINEAR_MAX = .8,
+    var CLOSE_ENOUGH_TO_GOAL = .2,
+        ANGULAR_ACCEL = 1.0, ANGULAR_INC = .1, ANGULAR_MIN = -.4, ANGULAR_MAX = .4,
+        LINEAR_ACCEL = 1.0, LINEAR_INC = .1, LINEAR_MIN = 0, LINEAR_MAX = .75,
         DT = .1, 
-        CLEARANCE_MIN = .6, CLEARANCE_MAX = 1.4,
-        LINEAR_WEIGHT = .1, CLEARANCE_WEIGHT = 10, GOAL_DIR_WEIGHT = .1,
-        SLOW_DOWN_RADIUS = 2,
+        CLEARANCE_MIN = .6, CLEARANCE_MAX = 2.25,
+        LINEAR_WEIGHT = .25, CLEARANCE_WEIGHT = .2, GOAL_DIR_WEIGHT = .4,
+        SLOW_DOWN_RADIUS = 1.0, SIZE_RADIUS = .6, BUFFER_SPACE = .1,
+        NUM_OBSTACLES = 0,
         
         euclidDist = function (x1, y1, x2, y2) {
             return Math.sqrt((x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1));
@@ -25,38 +26,6 @@
             }
             
             return res;
-        },
-        
-        calcClearance = function (cloud, x, y) {
-            if (cloud.length === 0) {
-                return CLEARANCE_MAX;
-            }
-            
-            var min_clearance = euclidDist(
-                cloud[0].x, 
-                cloud[0].y, 
-                x, 
-                y
-                );
-            
-            for (var i = 1; i < cloud.length; i++) {
-                var clearance = euclidDist(
-                    cloud[i].x, 
-                    cloud[i].y, 
-                    x, 
-                    y
-                    );
-                
-                if (clearance < min_clearance) {
-                    min_clearance = clearance;
-                }
-            }
-            
-            if (min_clearance > CLEARANCE_MAX) {
-                min_clearance = CLEARANCE_MAX;
-            }
-            
-            return min_clearance - CLEARANCE_MIN;
         },
 
         calcKinematic = function (cur_x, cur_y, cur_dir, linear, angular) {
@@ -108,65 +77,18 @@
             
             var options = [];
             
-            var ang_inc = ANGULAR_ACCEL*2/(ANGULAR_SAMPLES - 1),
-                lin_inc = LINEAR_ACCEL*2/(LINEAR_SAMPLES - 1);
-            /*    
-            console.log(cur_angular + ang_inc*~~(-(ANGULAR_SAMPLES - 1)/2), 
-                        cur_angular + ang_inc*~~((ANGULAR_SAMPLES - 1)/2));
-            console.log(cur_linear + lin_inc*~~(-(LINEAR_SAMPLES - 1)/2), 
-                        cur_linear + lin_inc*~~((LINEAR_SAMPLES - 1)/2));
-            */
-            
-            for (var ang_index = ~~(-(ANGULAR_SAMPLES - 1)/2); 
-                 ang_index <= ~~((ANGULAR_SAMPLES - 1)/2);
-                 ang_index += 1) 
+            for (var angular = cur_angular - ANGULAR_ACCEL; 
+                    angular <= cur_angular + ANGULAR_ACCEL;
+                    angular += ANGULAR_INC) 
             {
-                var angular = cur_angular + ang_index*ang_inc;
-                
                 if (angular < ANGULAR_MIN || angular > ANGULAR_MAX) {
                     continue;
                 }
                 
-                var clearance = CLEARANCE_MAX;
-                
-                for (var lin_index = ~~(-(LINEAR_SAMPLES - 1)/2); 
-                     lin_index <= ~~((LINEAR_SAMPLES - 1)/2);
-                     lin_index += 1) 
+                for (var linear = cur_linear - LINEAR_ACCEL; 
+                        linear <= cur_linear + LINEAR_ACCEL;
+                        linear += LINEAR_INC) 
                 {
-                    var linear = cur_linear + lin_index*lin_inc;
-                    
-                    if (linear < LINEAR_MIN || linear > LINEAR_MAX) {
-                        continue;
-                    } 
-                    
-                    // calcular new point
-                    var tmp = calcKinematic(cur_x, cur_y, cur_dir, linear, angular)
-                    x = tmp[0]
-                    y = tmp[1]
-                    dir = tmp[2]
-                           
-                    // calculate clearance
-                    var local_clearance = calcClearance(cloud, x, y);
-                    
-                    clearance += 1;
-                    
-                    // ignore if the point is too close to obstacles
-                    if (local_clearance < 0) {
-                        break;
-                    }
-                }
-                
-                for (var lin_index = ~~(-(LINEAR_SAMPLES - 1)/2); 
-                     lin_index <= ~~((LINEAR_SAMPLES - 1)/2);
-                     lin_index += 1) 
-                {
-                    // ignore if the point is too close to obstacles
-                    if (clearance < 0) {
-                        break;
-                    }
-                    
-                    var linear = cur_linear + lin_index*lin_inc;
-                    
                     if (linear < LINEAR_MIN || linear > LINEAR_MAX) {
                         continue;
                     } 
@@ -180,6 +102,46 @@
                     Plotter.drawArrow(x, y, dir);
                     
                     // calculate normalized clearance weight
+                    var res = clib.calcIntersection(cur_x, cur_y, cur_dir, linear, angular, cloud);
+                    
+                    if (res.point === false) { 
+                        var clearance = CLEARANCE_MAX,
+                            color = "gray";
+                    
+                        if (clearance < CLEARANCE_MIN) {
+                            console.log("gotcha");
+                            continue;
+                        }
+                    } else if (res.delta > CLEARANCE_MAX) {
+                        var clearance = CLEARANCE_MAX,
+                            color = "gray";
+                    
+                        if (clearance < CLEARANCE_MIN) {
+                            console.log("gotcha");
+                            continue;
+                        }
+                        
+                        Plotter.plotPoint(res.point.x, res.point.y, color, .1);
+                    } else {
+                        var clearance = res.delta,
+                            color = "red";
+                    
+                        if (clearance < CLEARANCE_MIN) {
+                            console.log("gotcha");
+                            continue;
+                        }
+                        
+                        Plotter.plotPoint(res.point.x, res.point.y, color, .1);
+                    }
+                    
+                    Plotter.plotPoint(res.point.x, res.point.y, color, .1);
+                        
+                    if (res.traj.type === "circle") {
+                        Plotter.plotCircle(res.traj.x, res.traj.y, color, res.traj.r);
+                    } else if (res.traj.type === "vector") {
+                        Plotter.plotVector(res.traj.x, res.traj.y, res.traj.dir, color);
+                    }
+                    
                     var clearanceNorm = clearance/CLEARANCE_MAX;
                     
                     // calculate normalized goal direction weight
@@ -198,7 +160,10 @@
                     options.push({
                         weight: weight, 
                         linear: linear, 
-                        angular: angular
+                        angular: angular,
+                        clearanceNorm: clearanceNorm,
+                        goalDirDifNorm: goalDirDifNorm,
+                        linearNorm: linearNorm
                     });
                 }
             }
@@ -229,6 +194,14 @@
                 options[best_index].linear *= (distToGoal/SLOW_DOWN_RADIUS);
             }
             
+            /*
+            console.log(
+                options[best_index].clearanceNorm,
+                options[best_index].goalDirDifNorm,
+                options[best_index].linearNorm
+                );
+            */
+            
             spec.action_out.linear = options[best_index].linear;
             spec.action_out.angular = options[best_index].angular;
             return true;
@@ -253,11 +226,26 @@
         cur_ang = 0;
         
     var cloud = [];
-    for (var i = 0; i < 80; i++) {
-        cloud.push({x: Math.random()*26-13, y: Math.random()*14-7});
+    for (var i = 0; i < NUM_OBSTACLES; i++) {
+        cloud.push({x: Math.random()*26-13, 
+                    y: Math.random()*14-7,
+                    r: SIZE_RADIUS + BUFFER_SPACE,
+                    dir: Math.random()*2*Math.PI});
     }
+    /*
+    OBSTACLE_VELOCITY = .01;
+    
+    var obstacleStep = function () {
+        for (var i = 0; i < NUM_OBSTACLES; i++) {
+            cloud[i].x += OBSTACLE_VELOCITY*Math.cos(cloud[i].dir);
+            cloud[i].y += OBSTACLE_VELOCITY*Math.sin(cloud[i].dir);
+        }
+    };
+    
+    setInterval(obstacleStep, 100);
+    */
         
-    var step = function() {
+    var step = function () {
         var spec = {
             action_out: {linear: 0, angular: 0},
             cur_x: cur_x,
@@ -272,11 +260,13 @@
         
         Plotter.clear();
         Plotter.plotPoint(cur_x, cur_y, "lightBlue", CLEARANCE_MAX);
-        Plotter.plotPoint(cur_x, cur_y, "lightGreen", CLEARANCE_MIN);
+        Plotter.plotPoint(cur_x, cur_y, "lightGreen", SIZE_RADIUS);
+        Plotter.plotCircle(cur_x, cur_y, "darkGreen", SIZE_RADIUS);
         Plotter.drawAxises(1, 1);
         
         for (var i = 0; i < spec.cloud.length; i++) {
-            Plotter.plotPoint(spec.cloud[i].x, spec.cloud[i].y)
+            Plotter.plotPoint(spec.cloud[i].x, spec.cloud[i].y, "black", .05);
+            Plotter.plotCircle(spec.cloud[i].x, spec.cloud[i].y, "gray", spec.cloud[i].r);
         }
         
         Plotter.plotPoint(goal_x, goal_y, "blue", .1);
@@ -309,5 +299,23 @@
         goal_y = coords[1];
     };
     
+    selectNewGoal = function () {
+        LINEAR_WEIGHT = document.getElementById("linearVel").value + 0;
+        CLEARANCE_WEIGHT = document.getElementById("clearance").value + 0;
+        GOAL_DIR_WEIGHT = document.getElementById("goalDir").value + 0;
+        
+        
+        var coords = Plotter.getPlotCoords(
+            Math.random()*canvas.width,
+            Math.random()*canvas.height
+            );
+            
+        goal_x = coords[0];
+        goal_y = coords[1];
+        
+        setTimeout(selectNewGoal, 10000);
+    }
+    
     setInterval(step, 50);
+    selectNewGoal();
 })();

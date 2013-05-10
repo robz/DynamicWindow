@@ -1,78 +1,143 @@
-var canvas = document.getElementById("canvas"),
-    context = canvas.getContext("2d"),
-    WIDTH = canvas.width,
-    HEIGHT = canvas.height,
-    LARGE_DISTANCE = Math.sqrt(WIDTH*WIDTH + HEIGHT*HEIGHT),
-    MAX_RADIUS = 50,
+var MAX_RADIUS = 50,
     MIN_RADIUS = 10,
     NUM_CIRCLES = 10,
-    POINT_SIZE = 2;
+    
+    canvas = document.getElementById("canvas");
 
-context.fillStyle = "lightGray";
-context.fillRect(0, 0, WIDTH, HEIGHT);
+    
+var gi = (function () {
+    var lib = {},
+    
+        context = canvas.getContext("2d"),
+        WIDTH = canvas.width,
+        HEIGHT = canvas.height,
+        LARGE_DISTANCE = Math.sqrt(WIDTH*WIDTH + HEIGHT*HEIGHT),
+        POINT_SIZE = 2;
+        
+    lib.WIDTH = WIDTH;
+    lib.HEIGHT = HEIGHT;
+    
+    lib.drawCircle = function (c, color) {
+        context.strokeStyle = color || "blue";
+        context.beginPath();
+        context.arc(c.x, c.y, c.r, 0, Math.PI*2, false);
+        context.stroke();
+    };
 
-var drawCircle = function (c, color) {
-    context.strokeStyle = color || "blue";
-    context.beginPath();
-    context.arc(c.x, c.y, c.r, 0, Math.PI*2, false);
-    context.stroke();
-}
+    lib.drawPoint = function (p, color) {
+        context.fillStyle = color || "red";
+        context.beginPath();
+        context.arc(p.x, p.y, POINT_SIZE, 0, Math.PI*2, false);
+        context.fill();
+    };
 
-var drawPoint = function (p, color) {
-    context.fillStyle = color || "red";
-    context.beginPath();
-    context.arc(p.x, p.y, POINT_SIZE, 0, Math.PI*2, false);
-    context.fill();
-}
+    lib.drawVector = function (v, color) {
+        context.strokeStyle = color || "blue";
+        context.beginPath();
+        context.moveTo(v.x, v.y);
+        context.lineTo(v.x + LARGE_DISTANCE*Math.cos(v.dir),
+                       v.y + LARGE_DISTANCE*Math.sin(v.dir));
+        context.stroke();
+    };
 
-var drawVector = function (v, color) {
-    context.strokeStyle = color || "blue";
-    context.beginPath();
-    context.moveTo(v.x, v.y);
-    context.lineTo(v.x + LARGE_DISTANCE*Math.cos(v.dir),
-                   v.y + LARGE_DISTANCE*Math.sin(v.dir));
-    context.stroke();
-};
-
-var draw = (function () {
-    var lookup = {
-        "circle": drawCircle,
-        "point": drawPoint,
-        "vector": drawVector
+    lib.draw = (function () {
+        var lookup = {
+            "circle": lib.drawCircle,
+            "point": lib.drawPoint,
+            "vector": lib.drawVector
+        };
+        
+        return function (thing, color) {
+            lookup[thing.type](thing, color);
+        }
+    })();
+    
+    lib.clear = function () {        
+        context.fillStyle = "lightGray";
+        context.fillRect(0, 0, gi.WIDTH, gi.HEIGHT);
     };
     
-    return function (thing, color) {
-        lookup[thing.type](thing, color);
-    }
-})();
+    return lib;
 
-var circles = [];
+})();
+//
+// Make background circles
+//
+
+var staticCircles = [];
 
 for (var i = 0; i < NUM_CIRCLES; i++) {
-    var c = makeCircle(
-        Math.random()*WIDTH, 
-        Math.random()*HEIGHT, 
+    var c = clib.makeCircle(
+        Math.random()*gi.WIDTH, 
+        Math.random()*gi.HEIGHT, 
         Math.random()*(MAX_RADIUS - MIN_RADIUS) + MIN_RADIUS
     );
     
-    draw(c);
-    
-    circles.push(c);
+    staticCircles.push(c);
 }
 
-for (var w = -.1; w <= .1; w += .01) {
-    var traj = calculateTrajetory(makePose(
-        WIDTH/2, 
-        HEIGHT/2, 
-        Math.PI*3/2, 
-        1, 
-        w
-    ));
+//
+// Set up trajectory calculations
+//
+
+var globalAngle = 0, 
+    globalX = 0, 
+    globalY = 0;
+
+canvas.onmousemove = function (event) {
+    globalX = event.offsetX,
+    globalY = event.offsetY;
+};
+
+var developTrajectories = function () {
+    var circles = staticCircles.concat([
+            clib.makeCircle(globalX, globalY, 50)
+            ]),
+            
+        x = gi.WIDTH/2, 
+        y = gi.HEIGHT/2;
     
-    draw(traj, "black");
+    gi.clear();
     
-    
+    for (var i = 0; i < circles.length; i++) {
+        gi.draw(circles[i]);
+    }
+
+    for (var angular = -.1; angular <= .1; angular += .02) {
+        for (var linear = 1; linear <= 5; linear += 1) {
+            var res = clib.calcIntersection(
+                x,
+                y,
+                globalAngle, 
+                linear,
+                angular,
+                circles
+                );
+            
+            gi.draw(res.traj, "black");
+            
+            if (res.point) {
+                var kime = clib.calcKinematicFromArc(
+                    x,
+                    y, 
+                    globalAngle, 
+                    linear,
+                    angular,
+                    res.delta
+                    );
+                
+                gi.draw(clib.makePoint(kime[0], kime[1]));
+            }
+        }
+    }
 }
+
+setInterval(function() {
+    globalAngle += .01;
+    developTrajectories();
+}, 10);
+    
+
 
 
 
