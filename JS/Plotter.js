@@ -1,20 +1,57 @@
-var Plotter = (function (spec) {
+var Plotter = (function () {
     var plotter = {},
     
-        POINT_COLOR = spec.POINT_COLOR,
-        POINT_RADIUS = spec.POINT_RADIUS,
-        BG_COLOR = spec.BG_COLOR,
-        AXIS_COLOR = spec.AXIS_COLOR,
-        ARROW_COLOR = spec.ARROW_COLOR,
-        ARROW_LENGTH = spec.ARROW_LENGTH,
+        //
+        // constants
+        //
+        VECTOR_COLOR = "black",
+        BG_COLOR = "lightGray",
+        AXIS_COLOR = "gray",
+        ARROW_COLOR = "darkGray",
+        ARROW_LENGTH = 0.3,
         
+        //
+        // variables to be set during initialization
+        //
         context = null,
         width = null,
         height = null,
         originx = null,
         originy = null,
         scalex = null,
-        scaley = null;
+        scaley = null,
+    
+        //
+        // functions to make converting plot to canvas coords easier
+        //
+        plotToCanvasX = function (x) {
+            return x*scalex + originx*width;
+        },
+        
+        plotToCanvasY = function (y) {
+            return height - (y*scaley + originy*height);
+        },
+        
+        moveTo = function (x, y) {
+            x = plotToCanvasX(x);
+            y = plotToCanvasY(y);
+            
+            context.moveTo(x, y);
+        },
+        
+        lineTo = function (x, y) {
+            x = plotToCanvasX(x);
+            y = plotToCanvasY(y);
+            
+            context.lineTo(x, y);
+        },
+    
+        arc = function (x, y, radius) {
+            x = plotToCanvasX(x);
+            y = plotToCanvasY(y);
+            
+            context.arc(x, y, radius, 0, Math.PI*2, false);
+        };
     
     // expecting originx and originy to be between 0 and 1 
     // where (0,0) would be the bottom-left of the canvas, and 
@@ -23,6 +60,7 @@ var Plotter = (function (spec) {
         context = canvas.getContext("2d");
         width = canvas.width;
         height = canvas.height;
+        
         originx = _originx;
         originy = _originy;
         scalex = _scalex;
@@ -36,7 +74,8 @@ var Plotter = (function (spec) {
         ];
     };
     
-    // where incx and incy are where the tick marks appear on the axis
+    // where ratioxy = 1 will show a tick on the axis every 1 unit;
+    //               = 2 will shows every 2 units, etc
     plotter.drawAxises = function (ratiox, ratioy) {
         context.strokeStyle = AXIS_COLOR;
         context.lineWidth = 3;
@@ -80,137 +119,87 @@ var Plotter = (function (spec) {
         }
     };
     
-    plotter.plotPoint = function (x, y, color, radius) {
-        if (typeof color === "undefined") {
-            color = POINT_COLOR;
-        }
-        
-        if (typeof radius === "undefined") {
-            radius = POINT_RADIUS;
-        } else {
-            radius *= scalex;
-        }
+    plotter.plotPoint = function (x, y, radius, color) {
+        radius *= scalex;
     
         context.save();
+        
         context.fillStyle = color;
+        
         context.beginPath();
-        context.arc(
-            x*scalex + originx*width, 
-            height - (y*scaley + originy*height), 
-            radius, 0, Math.PI*2, false);
+        arc(x, y, radius);
         context.fill();
+        
         context.restore();
     };
     
-    plotter.plotCircle = function (x, y, color, radius) {
-        if (typeof color === "undefined") {
-            color = POINT_COLOR;
-        }
-        
-        if (typeof radius === "undefined") {
-            radius = POINT_RADIUS;
-        } else {
-            radius *= scalex;
-        }
+    plotter.plotCircle = function (x, y, radius, color) {
+        radius *= scalex;
     
         context.save();
+        
         context.strokeStyle = color;
         context.lineWidth = 1;
+        
         context.beginPath();
-        context.arc(
-            x*scalex + originx*width, 
-            height - (y*scaley + originy*height), 
-            radius, 0, Math.PI*2, false);
+        arc(x, y, radius);
         context.stroke();
+        
         context.restore();
     };
-    
-    plotter.plotMousePoint = function (x, y) {
-        context.save();
-        context.fillStyle = POINT_COLOR;
-        context.beginPath();
-        context.arc(x, y, POINT_RADIUS, 0, Math.PI*2, false);
-        context.fill();
-        context.restore();
-    };
-    
-    var moveTo = function (x, y) {
-        x = x*scalex + originx*width;
-        y = height - (y*scaley + originy*height);
-        
-        context.moveTo(x, y);
-    }
-    
-    var lineTo = function (x, y) {
-        x = x*scalex + originx*width;
-        y = height - (y*scaley + originy*height);
-        
-        context.lineTo(x, y);
-    }
     
     plotter.plotVector = function (x, y, dir, color) {
         if (typeof color === "undefined") {
-            color = POINT_COLOR;
+            color = VECTOR_COLOR;
         }
         
         context.save();
+        
         context.strokeStyle = color;
         context.lineWidth = 1;
+        
         context.beginPath();
         moveTo(x, y);
         lineTo(x + 1e6*Math.cos(dir), y + 1e6*Math.sin(dir));
         context.stroke();
+        
         context.restore();
     };
     
-    arc = function (x, y, radius) {
-        x = x*scalex + originx*width;
-        y = height - (y*scaley + originy*height);
+    plotter.plotArrow = function (x, y, dir, color) {
+        if (typeof color === "undefined") {
+            color = ARROW_COLOR;
+        }
         
-        context.arc(x, y, radius, 0, Math.PI*2, false);
-    }
+        var endx = x + ARROW_LENGTH*Math.cos(dir),
+            endy = y + ARROW_LENGTH*Math.sin(dir);
     
-    plotter.drawArrow = function (x, y, dir) {
         context.save();
         
-        context.strokeStyle = ARROW_COLOR;
+        context.strokeStyle = color;
         context.lineWidth = 2;
-        context.beginPath();
         
+        context.beginPath();
         moveTo(x, y);
-        lineTo(x + ARROW_LENGTH*Math.cos(dir), 
-                       y + ARROW_LENGTH*Math.sin(dir));
-        lineTo(x + ARROW_LENGTH*Math.cos(dir) + ARROW_LENGTH/2*Math.cos(dir + 4*Math.PI/5), 
-                       y + ARROW_LENGTH*Math.sin(dir) + ARROW_LENGTH/2*Math.sin(dir + 4*Math.PI/5));
-        lineTo(x + ARROW_LENGTH*Math.cos(dir), 
-                       y + ARROW_LENGTH*Math.sin(dir));
-        lineTo(x + ARROW_LENGTH*Math.cos(dir) + ARROW_LENGTH/2*Math.cos(dir - 4*Math.PI/5), 
-                       y + ARROW_LENGTH*Math.sin(dir) + ARROW_LENGTH/2*Math.sin(dir - 4*Math.PI/5));
+        lineTo(endx, endy);
+        lineTo(endx + ARROW_LENGTH/2*Math.cos(dir + 4*Math.PI/5), 
+               endy + ARROW_LENGTH/2*Math.sin(dir + 4*Math.PI/5));
+        lineTo(endx, endy);
+        lineTo(endx + ARROW_LENGTH/2*Math.cos(dir - 4*Math.PI/5), 
+               endy + ARROW_LENGTH/2*Math.sin(dir - 4*Math.PI/5));
         context.stroke();
         
         context.restore();
     };
     
-    plotter.drawRedArrow = function (x, y, dir) {
-        var tmp = ARROW_COLOR;
-        ARROW_COLOR = "red";
-        plotter.drawArrow(x, y, dir);
-        ARROW_COLOR = tmp;
-    };
-    
     plotter.clear = function () {
         context.save();
+        
         context.fillStyle = BG_COLOR;
         context.fillRect(0, 0, width, height);
+        
         context.restore();
     };
     
     return plotter;
-})({
-    POINT_COLOR: "black",
-    POINT_RADIUS: 5,
-    BG_COLOR: "lightGray",
-    AXIS_COLOR: "gray",
-    ARROW_COLOR: "darkGray",
-    ARROW_LENGTH: .3,
-});
+})();

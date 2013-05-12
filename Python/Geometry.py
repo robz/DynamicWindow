@@ -1,35 +1,104 @@
 import math
 
-class Circle:
-    def __init__(self, x, y, r):
-        self.x = x
-        self.y = y
-        self.r = r
-
-class Point:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-
-def euclid(x1, y1, x2, y2):
-    return math.sqrt((x1 - x2)**2 + (y1 - y2)**2)
-
-def intersections(c1, c2):
-    dist = euclid(c1.x, c1.y, c2.x, c2.y)
-    angle = math.atan2(c2.y - c1.y, c2.x - c1.x)
+class GLib:
+    @staticmethod
+    def euclid(x1, y1, x2, y2):
+        return math.sqrt((x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1))
+        
+    @staticmethod
+    def boundAngle0to2Pi(angle):
+        return angle - math.floor(angle/(2*math.pi))*2*math.pi
+        
+    @staticmethod
+    def angleDif(ang1, ang2):
+        res = GLib.boundAngle0to2Pi(ang1) - GLib.boundAngle0to2Pi(ang2)
+        
+        if res > math.pi:
+            res -= math.pi*2
+        elif res < -math.pi:
+            res += math.pi*2
+        
+        return res
     
-    small = min(c1.r, c2.r)
-    big = max(c1.r, c2.r)
+    @staticmethod
+    def calcTrajectoryStep(
+        cur_x, 
+        cur_y, 
+        cur_dir, 
+        linear, 
+        angular, 
+        arclen, 
+        new_dir
+        ):
     
-    if dist == small + big or dist == big - small:
-        return [Point(c1.x + c1.r*math.cos(angle), 
-                      c1.y + c1.r*math.sin(angle))]
-    elif dist < small + big and dist > big - small:
-        # law of cosines
-        angle_offset = math.acos((c1.r**2 + dist**2 - c2.r**2)/(2*c1.r*dist))
-        return [Point(c1.x + c1.r*math.cos(angle + angle_offset), 
-                      c1.y + c1.r*math.sin(angle + angle_offset)), 
-                Point(c1.x + c1.r*math.cos(angle - angle_offset), 
-                      c1.y + c1.r*math.sin(angle - angle_offset))]	
+        if abs(angular) < 1e-2:
+            x = cur_x + arclen*math.cos(cur_dir)
+            y = cur_y + arclen*math.sin(cur_dir)
+        elif angular < 0:
+            beta = cur_dir - new_dir
+            R = arclen/beta
+
+            x = cur_x + R*math.cos(cur_dir - math.pi/2) \
+                      + R*math.cos(cur_dir + math.pi/2 - beta)
+            y = cur_y + R*math.sin(cur_dir - math.pi/2) \
+                      + R*math.sin(cur_dir + math.pi/2 - beta)
+        elif angular > 0:
+            beta = new_dir - cur_dir
+            R = arclen/beta
+
+            x = cur_x + R*math.cos(cur_dir + math.pi/2) \
+                      + R*math.cos(cur_dir - math.pi/2 + beta)
+            y = cur_y + R*math.sin(cur_dir + math.pi/2) \
+                      + R*math.sin(cur_dir - math.pi/2 + beta)
+        
+        return [x, y, new_dir]
     
-    return []
+    @staticmethod
+    def calcTrajectoryStepFromArc(
+        cur_x, 
+        cur_y, 
+        cur_dir, 
+        linear, 
+        angular, 
+        arclen
+        ):
+        
+        if abs(linear) <= 1e-6:
+            raise Exception("exception: linear velocity cannot be zero here!")
+        
+        new_dir = cur_dir + (arclen/linear)*angular
+        
+        return GLib.calcTrajectoryStep(
+            cur_x, 
+            cur_y, 
+            cur_dir, 
+            linear, 
+            angular, 
+            arclen, 
+            new_dir
+            )
+
+    @staticmethod
+    def calcTrajectoryStepFromTime(
+        cur_x, 
+        cur_y, 
+        cur_dir, 
+        linear, 
+        angular, 
+        dt
+        ):
+        
+        arclen = dt*linear
+        new_dir = cur_dir + dt*angular
+        
+        return GLib.calcTrajectoryStep(
+            cur_x, 
+            cur_y, 
+            cur_dir, 
+            linear, 
+            angular, 
+            arclen, 
+            new_dir
+            )
+
+print "glib compiles!"

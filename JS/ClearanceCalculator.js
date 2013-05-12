@@ -40,26 +40,6 @@ var clib = (function() {
         };
     };
 
-    var euclid = function (x1, y1, x2, y2) {
-        return Math.sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2))
-    };
-
-    var boundAngle0to2Pi = function (angle) {
-        return angle - Math.floor(angle/(2*Math.PI))*2*Math.PI;
-    };
-
-    var angleDif = function (ang1, ang2) {
-        var res = boundAngle0to2Pi(ang1) - boundAngle0to2Pi(ang2);
-        
-        if (res > Math.PI) {
-            res -= Math.PI*2;
-        } else if (res < -Math.PI) {
-            res += Math.PI*2;
-        }
-        
-        return res;
-    };
-
     var getParameterOfIntersection = function (x0, y0, theta0, x1, y1, theta1) {
         // return false if the angles are parallel
         if (Math.abs(Math.sin(theta0 - theta1)) < SMALL_ENOUGH) {
@@ -71,7 +51,7 @@ var clib = (function() {
     }
 
     var circleIntersections = function (c1, c2) {
-        var dist = euclid(c1.x, c1.y, c2.x, c2.y),
+        var dist = glib.euclid(c1.x, c1.y, c2.x, c2.y),
             angle = Math.atan2(c2.y - c1.y, c2.x - c1.x),
         
             small = (c1.r < c2.r) ? c1.r : c2.r,
@@ -140,15 +120,15 @@ var clib = (function() {
             } else if (points.length === 2) {
                 // need to find the closest of the two points to the starting point
                 // along the trajectory 
-                var curAngle = boundAngle0to2Pi(Math.atan2(
+                var curAngle = glib.boundAngle0to2Pi(Math.atan2(
                         pose.y - traj.y,
                         pose.x - traj.x
                     )),
-                    angle1 = boundAngle0to2Pi(Math.atan2(
+                    angle1 = glib.boundAngle0to2Pi(Math.atan2(
                         points[0].y - traj.y,
                         points[0].x - traj.x
                     )),
-                    angle2 = boundAngle0to2Pi(Math.atan2(
+                    angle2 = glib.boundAngle0to2Pi(Math.atan2(
                         points[1].y - traj.y,
                         points[1].x - traj.x
                     ));
@@ -206,12 +186,12 @@ var clib = (function() {
             
             // if the intersection occured inside the circle, check the real 
             //  intersection on the circle's perimeter
-            var a = euclid(intersection.x, intersection.y, circle.x, circle.y);
+            var a = glib.euclid(intersection.x, intersection.y, circle.x, circle.y);
             
             if (a < circle.r) {
                 var r = circle.r,
                     b = Math.sqrt(r*r - a*a),
-                    dist = euclid(intersection.x, intersection.y, traj.x, traj.y);
+                    dist = glib.euclid(intersection.x, intersection.y, traj.x, traj.y);
 
                 if (s < 0) {
                     dist *= -1;
@@ -277,75 +257,6 @@ var clib = (function() {
         }
         
         return false;
-    };
-    
-    var calcKinematic = function (
-        cur_x, 
-        cur_y, 
-        cur_dir, 
-        linear, 
-        angular, 
-        arclen, 
-        dir
-        )
-    {
-        var x, y;
-    
-        if (Math.abs(angular) < 1e-2) {
-            x = cur_x + arclen*Math.cos(cur_dir);
-            y = cur_y + arclen*Math.sin(cur_dir);
-        } else if (angular < 0) {
-            var beta = cur_dir - dir,
-                R = arclen/beta;
-
-            x = cur_x + R*Math.cos(cur_dir - Math.PI/2) 
-                      + R*Math.cos(cur_dir + Math.PI/2 - beta);
-            y = cur_y + R*Math.sin(cur_dir - Math.PI/2) 
-                      + R*Math.sin(cur_dir + Math.PI/2 - beta);
-        } else if (angular > 0) {
-            var beta = dir - cur_dir,
-                R = arclen/beta;
-
-            x = cur_x + R*Math.cos(cur_dir + Math.PI/2) 
-                      + R*Math.cos(cur_dir - Math.PI/2 + beta);
-            y = cur_y + R*Math.sin(cur_dir + Math.PI/2) 
-                      + R*Math.sin(cur_dir - Math.PI/2 + beta);
-        } 
-        
-        return [x, y, dir];
-    };
-    
-    lib.calcKinematicFromArc = function (
-        cur_x, 
-        cur_y, 
-        cur_dir, 
-        linear, 
-        angular, 
-        arclen
-        )
-    {
-        if (Math.abs(linear) <= 1e-6) {
-            throw "exception: linear velocity cannot be zero here!";   
-        }
-        
-        var dir = cur_dir + (arclen/linear)*angular;
-        
-        return calcKinematic(cur_x, cur_y, cur_dir, linear, angular, arclen, dir);
-    };
-
-    lib.calcKinematicFromDT = function (
-        cur_x, 
-        cur_y, 
-        cur_dir, 
-        linear, 
-        angular, 
-        DT
-        )
-    {
-        var arclen = DT*linear,
-            dir = cur_dir + DT*angular;
-        
-        return calcKinematic(cur_x, cur_y, cur_dir, linear, angular, arclen, dir);
     };
 
     return lib;
