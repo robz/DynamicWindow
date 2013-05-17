@@ -35,21 +35,21 @@ class GLib:
             x = cur_x + arclen*math.cos(cur_dir)
             y = cur_y + arclen*math.sin(cur_dir)
         elif angular < 0:
-            beta = cur_dir - new_dir
+            beta = float(cur_dir - new_dir)
             R = arclen/beta
 
-            x = cur_x + R*math.cos(cur_dir - math.pi/2) \
-                      + R*math.cos(cur_dir + math.pi/2 - beta)
-            y = cur_y + R*math.sin(cur_dir - math.pi/2) \
-                      + R*math.sin(cur_dir + math.pi/2 - beta)
+            x = cur_x + R*math.cos(cur_dir - math.pi/2.0) \
+                      + R*math.cos(cur_dir + math.pi/2.0 - beta)
+            y = cur_y + R*math.sin(cur_dir - math.pi/2.0) \
+                      + R*math.sin(cur_dir + math.pi/2.0 - beta)
         elif angular > 0:
-            beta = new_dir - cur_dir
+            beta = float(new_dir - cur_dir)
             R = arclen/beta
 
-            x = cur_x + R*math.cos(cur_dir + math.pi/2) \
-                      + R*math.cos(cur_dir - math.pi/2 + beta)
-            y = cur_y + R*math.sin(cur_dir + math.pi/2) \
-                      + R*math.sin(cur_dir - math.pi/2 + beta)
+            x = cur_x + R*math.cos(cur_dir + math.pi/2.0) \
+                      + R*math.cos(cur_dir - math.pi/2.0 + beta)
+            y = cur_y + R*math.sin(cur_dir + math.pi/2.0) \
+                      + R*math.sin(cur_dir - math.pi/2.0 + beta)
         
         return [x, y, new_dir]
     

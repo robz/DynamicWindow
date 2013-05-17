@@ -7,35 +7,35 @@ SMALL_ENOUGH = 1e-6
 class Circle:
     def __init__(self, x, y, r):
         self.type = "circle"
-        self.x = x
-        self.y = y
-        self.r = r
+        self.x = float(x)
+        self.y = float(y)
+        self.r = float(r)
         
 class Point:
     def __init__(self, x, y):
         self.type = "point"
-        self.x = x
-        self.y = y
+        self.x = float(x)
+        self.y = float(y)
 
 class Vector:
     def __init__(self, x, y, dir):
         self.type = "vector"
-        self.x = x
-        self.y = y
-        self.dir = dir
+        self.x = float(x)
+        self.y = float(y)
+        self.dir = float(dir)
 
 class Pose:
     def __init__(self, x, y, dir, v, w):
-        self.x = x
-        self.y = y
-        self.dir = dir
-        self.v = v
-        self.w = w
+        self.x = float(x)
+        self.y = float(y)
+        self.dir = float(dir)
+        self.v = float(v)
+        self.w = float(w)
         
 class TrajIntersection:
     def __init__(self, point, delta):
         self.point = point
-        self.delta = delta
+        self.delta = float(delta)
         self.traj = None
 
 class CLib:
@@ -78,7 +78,7 @@ class CLib:
                           c1.y + c1.r*math.sin(angle))]
         elif dist < small + big and dist > big - small:
             # using the law of cosines
-            angleOffset = math.acos((c1.r*c1.r + dist*dist - c2.r*c2.r)/(2*c1.r*dist))
+            angleOffset = math.acos((c1.r*c1.r + dist*dist - c2.r*c2.r)/(2.0*c1.r*dist))
             
             return [
                 Point(c1.x + c1.r*math.cos(angle + angleOffset), 
@@ -119,7 +119,7 @@ class CLib:
     @staticmethod
     def trajectoryIntersection(pose, traj, circle):
         if traj.type == "circle":
-            points = circleIntersections(traj, circle)
+            points = CLib.circleIntersections(traj, circle)
             
             if len(points) == 0:
                 return False
@@ -193,7 +193,7 @@ class CLib:
             
             if a < circle.r:
                 r = circle.r
-                b = Math.sqrt(r*r - a*a)
+                b = math.sqrt(r*r - a*a)
                 dist = GLib.euclid(intersection.x, intersection.y, traj.x, traj.y)
 
                 if s < 0:
@@ -252,8 +252,3 @@ class CLib:
             return res.delta
         
         return False
-
-print "CLib compiled!"
-
-
-

@@ -37,8 +37,8 @@ class Plotter:
         self.height = height
         self.originx = originx
         self.originy = originy
-        self.scalex = scalex
-        self.scaley = scaley
+        self.scalex = float(scalex)
+        self.scaley = float(scaley)
     
     def plotToCanvasX(self, x):
         return x*self.scalex + self.originx*self.width
@@ -172,13 +172,21 @@ class Plotter:
         
         self.line(x, y, endx, endy, color, 2)
         self.line(
-            endx + ARROW_LENGTH/2*math.cos(dir + 4*math.pi/5), 
-            endy + ARROW_LENGTH/2*math.sin(dir + 4*math.pi/5),
-            endx, endy, color, 2)
+            endx + ARROW_LENGTH/2.0*math.cos(dir + 4*math.pi/5.0), 
+            endy + ARROW_LENGTH/2.0*math.sin(dir + 4*math.pi/5.0),
+            endx, 
+            endy, 
+            color, 
+            2
+            )
         self.line(
-            endx + ARROW_LENGTH/2*math.cos(dir - 4*math.pi/5), 
-            endy + ARROW_LENGTH/2*math.sin(dir - 4*math.pi/5),
-            endx, endy, color, 2)
+            endx + ARROW_LENGTH/2.0*math.cos(dir - 4*math.pi/5.0), 
+            endy + ARROW_LENGTH/2.0*math.sin(dir - 4*math.pi/5.0),
+            endx, 
+            endy, 
+            color, 
+            2
+            )
     
     def clear(self):
         self.window.blit(self.background, (0, 0))
